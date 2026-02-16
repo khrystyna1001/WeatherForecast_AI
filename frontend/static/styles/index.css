@@ -1,0 +1,58 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, sans-serif;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.main-container {
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 40px;
+}
+
+.card {
+    text-align: center;
+}
+
+.date-input-container {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 10px 20px;
+    width: 300px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.custom-date-input {
+    border: none;
+    outline: none;
+    font-size: 18px;
+    color: #333;
+    width: 100%;
+    cursor: pointer;
+}
+
+.instruction-text {
+    font-size: 18px;
+    color: #444;
+    font-weight: 400;
+}
