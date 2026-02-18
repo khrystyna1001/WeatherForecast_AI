@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Forecast AI</title>
+    <link rel="stylesheet" href="static/styles/forecast.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <main class="dashboard">
+        <header>
+            <h1>Weather Forecast AI</h1>
+        </header>
+
+        <section class="chart-container">
+            <canvas id="weatherChart"></canvas>
+        </section>
+
+        <div class="date-nav">
+            <button class="arrow-btn">❮</button>
+            <span class="current-date">15.02.2027</span>
+            <button class="arrow-btn">❯</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showForecast('today')">Today</button>
+            <button class="tab" onclick="showForecast('week')">Week</button>
+            <div class="unit-toggle">
+                <span class="active">°C</span> | <span>°F</span>
+            </div>
+        </div>
+        <section id="forecast-display" class="weather-grid"></section>
+
+        <section class="weather-grid">
+            <div class="weather-card">
+                <p class="card-time">Saturday 15th 2027, 9:00:00</p>
+                <p class="card-status">Raining</p>
+            </div>
+            </section>
+
+        <footer class="date-picker-section">
+            <input type="date" id="dateInput" placeholder="dd-mm-yyyy">
+            <label for="dateInput" id="resetDate" style="cursor: pointer;">Select a new date</label>
+        </footer>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
