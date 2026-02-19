@@ -1,14 +1,14 @@
 import os
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import openmeteo_requests
 import requests_cache
 from retry_requests import retry
 from dotenv import load_dotenv
 from rnn_weather import WeatherLSTM
-from datetime import datetime, timedelta
+from datetime import date, timedelta, datetime
 
 def get_date_suffix(day):
     if 11 <= day <= 13:
@@ -36,8 +36,8 @@ forecaster = WeatherLSTM(lookback_hours=24, feature_count=1)
 def get_weather_data():
     endpoint = os.getenv('URL')
     parameters = {
-        'latitude': 52.52,
-        'longitude': 13.41,
+        'latitude': os.getenv('LATITUDE'),
+        'longitude': os.getenv('LONGITUDE'),
         'hourly': 'temperature_2m',
     }
     responses = openmeteo.weather_api(endpoint, params=parameters)
@@ -52,34 +52,50 @@ def train_model():
     forecaster.train(X_train, y_train, epochs=5)
     print("Model ready!")
 
-@app.get("/predict")
-async def predict(view_type: str = Query("today")):
-    response = get_weather_data()
-    raw_data = forecaster.preprocess_json(response)
+@app.get("/predict/{base_date}")
+async def predict(base_date: date, view_type: str = Query("today")):
+    try:
+        print(base_date, type(base_date))
+        response = get_weather_data() 
+        current_raw_data = forecaster.preprocess_json(response)
+        
+        hours_to_predict = 12 if view_type == "today" else 168
+        current_dt = datetime.combine(base_date, datetime.min.time())
+        current_window = current_raw_data[-24:].copy()
     
-    predictions = []
-    base_date = datetime(2027, 2, 15, 9, 0, 0) 
-    
-    if view_type == "today":
-        current_window = raw_data[-24:]
-        for i in range(12):
-            next_val = forecaster.forecast_next_hour(current_window)
-            
-            pred_dt = base_date + timedelta(hours=i)
-            suffix = get_date_suffix(pred_dt.day)
-            formatted_time = pred_dt.strftime(f"%A %d{suffix} %Y, %H:%M:%S")
-            
-            predictions.append({
-                "time": formatted_time,
-                "temp": f"{next_val:.1f}°",
-                "status": "Raining",
-                "icon": "rain"
-            })
+        predictions = []
 
-            new_row = forecaster.scaler.transform([[next_val]])
+        for i in range(hours_to_predict):
+            prediction_input = current_window[np.newaxis, ...]
+            pred_scaled = forecaster.model.predict(prediction_input, verbose=0)
+            
+            dummy = np.zeros((1, forecaster.feature_count))
+            dummy[0, 0] = pred_scaled[0, 0]
+            actual_temp = forecaster.scaler.inverse_transform(dummy)[0, 0]
+            
+            pred_dt = current_dt + timedelta(hours=i)
+            
+            should_append = True if view_type == "today" else (i % 3 == 0)
+            
+            if should_append:
+                suffix = get_date_suffix(pred_dt.day)
+                predictions.append({
+                    "date": pred_dt.strftime("%Y-%m-%d"),
+                    "time": pred_dt.strftime("%H:%M"),
+                    "display_time": pred_dt.strftime(f"%A %d{suffix}, %H:%M"),
+                    "temp": f"{actual_temp:.1f}°",
+                    "status": "Partly Cloudy",
+                    "icon": "cloud"
+                })
+
+            new_row = np.zeros((1, forecaster.feature_count))
+            new_row[0, 0] = pred_scaled[0, 0]
             current_window = np.append(current_window[1:], new_row, axis=0)
             
-    return predictions
+        return predictions
+    except Exception as e:
+        print(f"Internal Server Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

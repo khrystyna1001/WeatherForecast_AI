@@ -3,6 +3,7 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import layers, Model
 from sklearn.preprocessing import MinMaxScaler
+import joblib
 
 class WeatherLSTM:
     def __init__(self, lookback_hours=24, feature_count=5):
@@ -11,7 +12,7 @@ class WeatherLSTM:
         self.scaler = MinMaxScaler()
         self.model = None
 
-    def preprocess_json(self, response):
+    def preprocess_json(self, response, training=False):
         hourly = response.Hourly()
         temp_2m = hourly.Variables(0).ValuesAsNumpy()
 
@@ -20,11 +21,18 @@ class WeatherLSTM:
         })
 
         df_final = df.interpolate(method='linear').bfill().ffill()
-        scaled_data = self.scaler.fit_transform(df_final)
-        self.feature_count = df_final.shape[1]
         
-        print(f"Success! Data Shape: {df_final.shape}")
+        if training or not hasattr(self.scaler, "n_features_in_"):
+            scaled_data = self.scaler.fit_transform(df_final)
+        else:
+            scaled_data = self.scaler.transform(df_final)
         return scaled_data
+    
+    def save_scaler(self, filename="scaler.pkg"):
+        joblib.dump(self.scaler, filename)
+
+    def load_scaler(self, filename="scaler.pkg"):
+        self.scaler = joblib.load(filename)
     
     def create_sequences(self, data):
         X, y = [], []

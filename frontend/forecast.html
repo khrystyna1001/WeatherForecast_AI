@@ -20,29 +20,31 @@
 
         <div class="date-nav">
             <button class="arrow-btn">❮</button>
-            <span class="current-date">15.02.2027</span>
+            <span class="current-date"></span>
             <button class="arrow-btn">❯</button>
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showForecast('today')">Today</button>
-            <button class="tab" onclick="showForecast('week')">Week</button>
+            <button class="tab active" onclick="showForecast('today', event)">Today</button>
+            <button class="tab" onclick="showForecast('week', event)">Week</button>
             <div class="unit-toggle">
                 <span class="active">°C</span> | <span>°F</span>
             </div>
         </div>
         <section id="forecast-display" class="weather-grid"></section>
 
-        <section class="weather-grid">
+        <!-- <section class="weather-grid">
             <div class="weather-card">
                 <p class="card-time">Saturday 15th 2027, 9:00:00</p>
                 <p class="card-status">Raining</p>
             </div>
-            </section>
+            </section> -->
 
         <footer class="date-picker-section">
             <input type="date" id="dateInput" placeholder="dd-mm-yyyy">
-            <label for="dateInput" id="resetDate" style="cursor: pointer;">Select a new date</label>
+            <div>
+                <label for="dateInput" id="resetDate" style="cursor: pointer;">Select a new date</label>
+            </div>
         </footer>
     </main>
 
