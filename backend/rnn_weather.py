@@ -74,13 +74,18 @@ class WeatherLSTM:
     def forecast_date(self, scaled_data, target_date):
         now = pd.Timestamp.now(tz='UTC')
         target = pd.to_datetime(target_date, utc=True)
-        hours_to_predict = int((target - now).total_seconds() // 3600)
+        
+        diff_seconds = (target - now).total_seconds()
+        hours_to_predict = int(diff_seconds // 3600)
 
         if hours_to_predict <= 0:
-            return "Target date must be in the future."
+            last_val_scaled = scaled_data[-1, 0]
+            dummy = np.zeros((1, self.feature_count))
+            dummy[0, 0] = last_val_scaled
+            return self.scaler.inverse_transform(dummy)[0, 0]
         
         current_window = scaled_data[-self.lookback:].copy()
-        last_prediction_scaled = None
+        last_prediction_scaled = scaled_data[-1, 0]
 
         for _ in range(hours_to_predict):
             prediction_input = current_window[np.newaxis, ...]

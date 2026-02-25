@@ -24,27 +24,100 @@ const dateInput = document.getElementById('dateInput');
 const resetLabel = document.getElementById('resetDate');
 
 // Reset when clicking "Select new Date"
-resetLabel.addEventListener('click', function(e) {
-    dateInput.value = '';
-    document.querySelector('.current-date').innerText = '15.02.2027';
-    console.log("Date reset to default view.");
-});
+if (resetLabel) {
+    resetLabel.addEventListener('click', function(e) {
+        dateInput.value = '';
+        document.querySelector('.current-date').innerText = '15.02.2027';
+        console.log("Date reset to default view.");
+    });
+}
 
 const card = document.createElement('div');
 card.className = 'weather-card';
 
+// Arrows
+// Track the currently selected date globally
+let currentSelectedDate = new Date();
+
+// Initialize the page
+window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const dateParam = urlParams.get('date');
+    
+    if (dateParam) {
+        currentSelectedDate = new Date(dateParam);
+    }
+    
+    updateDateDisplay();
+    setupArrows();
+});
+
+function setupArrows() {
+    const prevBtn = document.querySelector('.arrow-btn:first-child');
+    const nextBtn = document.querySelector('.arrow-btn:last-child');
+
+    prevBtn.addEventListener('click', () => {
+        currentSelectedDate.setDate(currentSelectedDate.getDate() - 1);
+        syncAndFetch();
+    });
+
+    nextBtn.addEventListener('click', () => {
+        currentSelectedDate.setDate(currentSelectedDate.getDate() + 1);
+        syncAndFetch();
+    });
+}
+
+function syncAndFetch() {
+    // Convert to YYYY-MM-DD format for API and Input
+    const year = currentSelectedDate.getFullYear();
+    const month = String(currentSelectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(currentSelectedDate.getDate()).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${day}`;
+
+    // Update the Date Input field
+    document.getElementById('forecast_date').value = formattedDate;
+
+    // Update URL without reloading
+    const newUrl = `${window.location.pathname}?date=${formattedDate}`;
+    window.history.pushState({ path: newUrl }, '', newUrl);
+
+    updateDateDisplay();
+    
+    // Determine current view type from active tab
+    const isActiveWeek = document.querySelector('.tab:last-child').classList.contains('active');
+    showForecast(isActiveWeek ? 'week' : 'today');
+}
+
+function updateDateDisplay() {
+    const displaySpan = document.querySelector('.current-date');
+    if (displaySpan) {
+        const day = String(currentSelectedDate.getDate()).padStart(2, '0');
+        const month = String(currentSelectedDate.getMonth() + 1).padStart(2, '0');
+        const year = currentSelectedDate.getFullYear();
+        displaySpan.innerText = `${day}.${month}.${year}`;
+    }
+}
+
+// Update handleNewDate to use the global date object
+function handleNewDate() {
+    const dateInput = document.getElementById('forecast_date');
+    if (dateInput.value) {
+        currentSelectedDate = new Date(dateInput.value);
+        syncAndFetch();
+    }
+}
+
 // Chart data for weather forecast
 
-function updateChart(data) {
+function updateChart(data, viewType) {
     const weatherChart = Chart.getChart("weatherChart");
     if (!weatherChart) {
         console.error("Chart instance not found!");
         return;
     }
     
-    // Extract times and temperatures from the API data
-    weatherChart.data.labels = data.map(item => item.time);
-    weatherChart.data.datasets[0].data = data.map(item => parseFloat(item.temp));
+    weatherChart.data.labels = data.map(item => viewType === "weekly" ? item.date.split("-").slice(1).reverse().join(".") : item.time);
+    weatherChart.data.datasets[0].data = data.map(item => parseFloat(item.temp.replace('°', '')));
     
     weatherChart.update();
 }
@@ -52,70 +125,41 @@ function updateChart(data) {
 // Show weather forecast
 async function showForecast(type) {
     const viewType = (type === 'week' || type === 'weekly') ? 'weekly' : 'today';
-    
-    const urlParams = new URLSearchParams(window.location.search);
-    const selectedDate = urlParams.get('date');
-
-    if (!selectedDate) {
-        console.error("No date found in URL parameters.");
-        return;
-    }
-
-    document.querySelectorAll('.tab').forEach(btn => btn.classList.remove('active'));
-    
-    if (window.event && window.event.currentTarget) {
-        window.event.currentTarget.classList.add('active');
-    } else {
-        const tabs = document.querySelectorAll('.tab');
-        tabs.forEach(tab => {
-            if (tab.innerText.toLowerCase().includes(type.toLowerCase())) {
-                tab.classList.add('active');
-            }
-        });
-    }
     const container = document.getElementById('forecast-display');
-    container.innerHTML = '<p>Querying LSTM Model...</p>';
+    const dateInput = document.getElementById('forecast_date');
+    const selectedDate = dateInput.value || new URLSearchParams(window.location.search).get('date');
 
+    if (!selectedDate) return;
+
+    // UI Feedback
+    container.innerHTML = `<div class="loading-spinner">LSTM is processing atmospheric patterns...</div>`;
+    
     try {
-        const url = `http://127.0.0.1:8000/predict/${selectedDate}?view_type=${viewType}`;
-        console.log("Fetching from:", url);
-        
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            const errorBody = await response.text();
-            console.error("Server responded with:", errorBody);
-            throw new Error("Server error");
-        }
+        const response = await fetch(`http://127.0.0.1:8000/predict/${selectedDate}?view_type=${viewType}`);
+        if (!response.ok) throw new Error("AI Server Error");
         
         const data = await response.json();
         container.innerHTML = '';
-        
-        if (Chart.getChart("weatherChart")) {
-            updateChart(data);
-        }
-        
+
+        // Update Chart
+        updateChart(data, viewType);
+
+        // Generate Cards
         data.forEach(item => {
             const card = document.createElement('div');
             card.className = 'weather-card';
             card.innerHTML = `
-                <div class="card-header">
-                    <p class="card-date">${item.display_time}</p>
-                    <p class="card-status">${item.status}</p>
-                </div>
-                <div class="card-footer">
-                    <div class="stats">
-                        <span class="temp">${item.temp}C</span>
-                    </div>
-                </div>
+                <p class="card-date">${item.display_time}</p>
+                <span class="temp">${item.temp}</span>
+                <p class="card-status">${item.status}</p>
             `;
             container.appendChild(card);
         });
     } catch (err) {
-        console.error(err);
-        container.innerHTML = `<p>Error: AI Server responded with 404. Check FastAPI route.</p>`;
+        container.innerHTML = `<div class="loading-spinner" style="color: #ef4444;">AI Model Offline. Please check your Python server.</div>`;
     }
 }
+
 const urlParams = new URLSearchParams(window.location.search);
 const dateFromUrl = urlParams.get('date');
 if (dateFromUrl) {

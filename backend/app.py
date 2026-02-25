@@ -55,29 +55,15 @@ def train_model():
 @app.get("/predict/{base_date}")
 async def predict(base_date: date, view_type: str = Query("today")):
     try:
-        print(base_date, type(base_date))
         response = get_weather_data() 
         current_raw_data = forecaster.preprocess_json(response)
-        
-        hours_to_predict = 12 if view_type == "today" else 168
-        current_dt = datetime.combine(base_date, datetime.min.time())
-        current_window = current_raw_data[-24:].copy()
-    
         predictions = []
 
-        for i in range(hours_to_predict):
-            prediction_input = current_window[np.newaxis, ...]
-            pred_scaled = forecaster.model.predict(prediction_input, verbose=0)
-            
-            dummy = np.zeros((1, forecaster.feature_count))
-            dummy[0, 0] = pred_scaled[0, 0]
-            actual_temp = forecaster.scaler.inverse_transform(dummy)[0, 0]
-            
-            pred_dt = current_dt + timedelta(hours=i)
-            
-            should_append = True if view_type == "today" else (i % 3 == 0)
-            
-            if should_append:
+        if view_type == "today":
+            for i in range(1, 13):
+                actual_temp = forecaster.forecast_next_hour(current_raw_data)
+                pred_dt = datetime.combine(base_date, datetime.now().time()) + timedelta(hours=i)
+                
                 suffix = get_date_suffix(pred_dt.day)
                 predictions.append({
                     "date": pred_dt.strftime("%Y-%m-%d"),
@@ -87,11 +73,29 @@ async def predict(base_date: date, view_type: str = Query("today")):
                     "status": "Partly Cloudy",
                     "icon": "cloud"
                 })
+                new_row = np.zeros((1, forecaster.feature_count))
+                new_row[0, 0] = forecaster.scaler.transform([[actual_temp]])[0, 0]
+                current_raw_data = np.append(current_raw_data, new_row, axis=0)
 
-            new_row = np.zeros((1, forecaster.feature_count))
-            new_row[0, 0] = pred_scaled[0, 0]
-            current_window = np.append(current_window[1:], new_row, axis=0)
-            
+        else:
+            for i in range(1, 8):
+                target_dt = datetime.combine(base_date + timedelta(days=i), datetime.time(12, 0))
+                
+                actual_temp = forecaster.forecast_date(current_raw_data, target_dt)
+                temp_float = float(actual_temp)
+                if isinstance(actual_temp, str):
+                    print(f"Prediction skipped for {target_dt}: {actual_temp}")
+                    continue
+                suffix = get_date_suffix(target_dt.day)
+                predictions.append({
+                    "date": target_dt.strftime("%Y-%m-%d"),
+                    "time": f"{temp_float:.1f}",
+                    "display_time": target_dt.strftime(f"%A %d{suffix}"),
+                    "temp": f"{actual_temp:.1f}°",
+                    "status": "Sunny",
+                    "icon": "sun"
+                })
+
         return predictions
     except Exception as e:
         print(f"Internal Server Error: {e}")

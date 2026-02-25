@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weather Forecast AI</title>
     <link rel="stylesheet" href="static/styles/forecast.css">
+    <link rel="stylesheet" href="static/styles/index.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -25,29 +26,22 @@
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showForecast('today', event)">Today</button>
-            <button class="tab" onclick="showForecast('week', event)">Week</button>
-            <div class="unit-toggle">
-                <span class="active">°C</span> | <span>°F</span>
-            </div>
+            <button class="tab active" onclick="showForecast('today')">Today</button>
+            <button class="tab" onclick="showForecast('week')">Weekly</button>
         </div>
-        <section id="forecast-display" class="weather-grid"></section>
 
-        <!-- <section class="weather-grid">
-            <div class="weather-card">
-                <p class="card-time">Saturday 15th 2027, 9:00:00</p>
-                <p class="card-status">Raining</p>
-            </div>
-            </section> -->
+        <section id="forecast-display" class="weather-grid">
+            </section>
 
         <footer class="date-picker-section">
-            <input type="date" id="dateInput" placeholder="dd-mm-yyyy">
-            <div>
-                <label for="dateInput" id="resetDate" style="cursor: pointer;">Select a new date</label>
+            <div class="date-input-container">
+                <input type="date" id="forecast_date" class="custom-date-input">
+                <button class="card-button" onclick="handleNewDate()">Forecast AI</button>
             </div>
         </footer>
     </main>
 
     <script src="script.js"></script>
+    <script src="index.js"></script>
 </body>
 </html>
