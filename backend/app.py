@@ -8,7 +8,7 @@ import requests_cache
 from retry_requests import retry
 from dotenv import load_dotenv
 from rnn_weather import WeatherLSTM
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta, datetime, time
 
 def get_date_suffix(day):
     if 11 <= day <= 13:
@@ -49,11 +49,13 @@ def train_model():
     raw_data = forecaster.preprocess_json(response)
     X_train, y_train = forecaster.create_sequences(raw_data)
     forecaster.build_model()
-    forecaster.train(X_train, y_train, epochs=5)
+    forecaster.train(X_train, y_train, epochs=25)
     print("Model ready!")
 
 @app.get("/predict/{base_date}")
 async def predict(base_date: date, view_type: str = Query("today")):
+    if base_date < date.today():
+        raise HTTPException(status_code=400, detail="Cannot predict a past date")
     try:
         response = get_weather_data() 
         current_raw_data = forecaster.preprocess_json(response)
@@ -79,17 +81,18 @@ async def predict(base_date: date, view_type: str = Query("today")):
 
         else:
             for i in range(1, 8):
-                target_dt = datetime.combine(base_date + timedelta(days=i), datetime.time(12, 0))
+                target_dt = datetime.combine(base_date + timedelta(days=i), time(12, 0))
                 
                 actual_temp = forecaster.forecast_date(current_raw_data, target_dt)
-                temp_float = float(actual_temp)
-                if isinstance(actual_temp, str):
-                    print(f"Prediction skipped for {target_dt}: {actual_temp}")
-                    continue
+                
+                new_row = np.zeros((1, forecaster.feature_count))
+                new_row[0, 0] = forecaster.scaler.transform([[actual_temp]])[0, 0]
+                current_raw_data = np.append(current_raw_data, new_row, axis=0)
+
                 suffix = get_date_suffix(target_dt.day)
                 predictions.append({
                     "date": target_dt.strftime("%Y-%m-%d"),
-                    "time": f"{temp_float:.1f}",
+                    "time": f"{actual_temp:.1f}",
                     "display_time": target_dt.strftime(f"%A %d{suffix}"),
                     "temp": f"{actual_temp:.1f}°",
                     "status": "Sunny",

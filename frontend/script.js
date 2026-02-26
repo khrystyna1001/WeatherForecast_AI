@@ -57,7 +57,18 @@ function setupArrows() {
     const nextBtn = document.querySelector('.arrow-btn:last-child');
 
     prevBtn.addEventListener('click', () => {
-        currentSelectedDate.setDate(currentSelectedDate.getDate() - 1);
+        const targetDate = new Date(currentSelectedDate);
+        targetDate.setDate(targetDate.getDate() - 1);
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (targetDate < today) {
+            console.warn("Cannot forecast a past date");
+            return; 
+        }
+
+        currentSelectedDate = targetDate;
         syncAndFetch();
     });
 
@@ -132,7 +143,17 @@ async function showForecast(type) {
     if (!selectedDate) return;
 
     // UI Feedback
+    todayTab = document.getElementById("today-tab")
+    weeklyTab = document.getElementById("weekly-tab")
     container.innerHTML = `<div class="loading-spinner">LSTM is processing atmospheric patterns...</div>`;
+
+    if (viewType === 'weekly') {
+        weeklyTab?.classList.add("active");
+        todayTab?.classList.remove("active");
+    } else {
+        todayTab?.classList.add("active");
+        weeklyTab?.classList.remove("active");
+    }
     
     try {
         const response = await fetch(`http://127.0.0.1:8000/predict/${selectedDate}?view_type=${viewType}`);

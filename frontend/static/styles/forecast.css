@@ -167,7 +167,6 @@ header h1 {
     font-size: 1rem;
     background: var(--bg-color);
     outline: none;
-    transition: border-color 0.2s;
 }
 
 .custom-date-input:focus {

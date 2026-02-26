@@ -33,8 +33,7 @@ h1 {
 }
 
 .date-input-container {
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    border: none;
     padding: 10px 20px;
     width: 300px;
     margin-bottom: 20px;

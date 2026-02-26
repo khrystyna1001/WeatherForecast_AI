@@ -72,6 +72,7 @@ class WeatherLSTM:
         return prediction_final
     
     def forecast_date(self, scaled_data, target_date):
+
         now = pd.Timestamp.now(tz='UTC')
         target = pd.to_datetime(target_date, utc=True)
         
@@ -85,20 +86,23 @@ class WeatherLSTM:
             return self.scaler.inverse_transform(dummy)[0, 0]
         
         current_window = scaled_data[-self.lookback:].copy()
-        last_prediction_scaled = scaled_data[-1, 0]
+        
+        last_known_features = current_window[-1, 1:].copy()
 
         for _ in range(hours_to_predict):
             prediction_input = current_window[np.newaxis, ...]
+            
             pred_scaled = self.model.predict(prediction_input, verbose=0)
-
-            new_row = np.zeros((1, self.feature_count))
-            new_row[0][0] = pred_scaled[0, 0]
-
-            current_window = np.append(current_window[1:], new_row, axis=0)
-            last_prediction_scaled = pred_scaled[0, 0]
+            
+            new_row = np.zeros(self.feature_count)
+            new_row[0] = pred_scaled[0, 0]  
+            new_row[1:] = last_known_features 
+            
+            current_window = np.append(current_window[1:], [new_row], axis=0)
         
+        final_pred_scaled = current_window[-1, 0]
         dummy = np.zeros((1, self.feature_count))
-        dummy[0, 0] = last_prediction_scaled
+        dummy[0, 0] = final_pred_scaled
         prediction_final = self.scaler.inverse_transform(dummy)[0, 0]
 
         return prediction_final
